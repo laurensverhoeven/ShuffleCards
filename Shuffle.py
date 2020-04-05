@@ -13,6 +13,8 @@ from email.mime.text import MIMEText
 import numpy as np
 import functools
 import os
+from dominate import document
+import dominate.tags as html
 
 # TODO
 # - Allow for choosing the cards that are in the deck
@@ -41,6 +43,9 @@ import os
 # - Allow for adding clickable checkboxes for the cards in the email, to keep track of what has been played
 # - Find out if random's shuffle is random enough
 # - Store Suit and value of cards stored in 4-vector, to determine card value with matrix?
+# - Gather all lists of suits and values in one place, instead of redifining in multple classes
+# -
+# -
 # -
 
 # Done
@@ -74,59 +79,56 @@ class Email():
 
     with open(os.path.join(_credentials_path, "email_username"), 'r') as file:
         __sender_username = file.read()
-        print(__sender_username)
 
     with open(os.path.join(_credentials_path, "email_password"), 'r') as file:
         __sender_password = file.read()
-        print(__sender_password)
 
-    def __init__(self, recipient, subject = "Test Subject", body="Body Text"):
+    def __init__(self, recipient, subject = "Test Subject", body="Body Text", body_html=None):
         """Create en email to send to a player."""
         self._recipient = recipient
         self.subject = subject
         self.body = body
+        self.body_html = body_html
 
     def send(self):
         """Send an email."""
 
-        print(
-            f"Sending from email address {self.__sender_username} to "
-            + f"{self._recipient} at {self._recipient.email_address} "
-            + f"with subject '{self.subject}' and text: \n{self.body}"
-        )
+        # TODO: delete this
+        # For testing
+        self._recipient.email_address = self.__sender_username
 
-        email_subject = self.subject
-        # email_to = [self._recipient.email_address]
-        email_to = [self.__sender_username]
-        email_from = self.__sender_username
-        email_body = self.body
+        # print(
+        #     f"Sending from email address {self.__sender_username} to "
+        #     + f"{self._recipient} at {self._recipient.email_address} "
+        #     + f"with subject '{self.subject}' and text: \n{self.body}"
+        # )
 
         # Create message container - the correct MIME type is multipart/alternative.
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = email_subject
-        msg['From'] = email_from
-        msg['To'] = ", ".join(email_to)
+        msg['Subject'] = self.subject
+        msg['From'] = self.__sender_username
+        msg['To'] = ", ".join([self.__sender_username])
 
         # Record the MIME types of both parts - text/plain and text/html.
-        # part1 = MIMEText(body, 'plain')
-        part1 = MIMEText(email_body.encode('utf-8'), _charset='utf-8')
-        # part2 = MIMEText(html, 'html')
-
         # Attach parts into message container.
         # According to RFC 2046, the last part of a multipart message, in this case
         # the HTML message, is best and preferred.
-        msg.attach(part1)
-        # msg.attach(part2)
+        if self.body is not None:
+            part1 = MIMEText(self.body.encode('utf-8'), _charset='utf-8')
+            msg.attach(part1)
+        if self.body_html is not None:
+            part2 = MIMEText(str(self.body_html).encode('utf-8'), 'html', _charset='utf-8')
+            msg.attach(part2)
 
         try:
             server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
             server.ehlo()
             server.login(self.__sender_username, self.__sender_password)
             # server.sendmail(self.__sender_username, to, msg)
-            server.sendmail(self.__sender_username, email_to, msg.as_string())
+            server.sendmail(self.__sender_username, self.__sender_username, msg.as_string())
             server.close()
 
-            print(f'Email "{email_subject}" to {email_to} sent!')
+            print(f'Email "{self.subject}" to {self.__sender_username} sent!')
         except BaseException:
             print('Something went wrong...')
             raise
@@ -427,7 +429,7 @@ class Player():
         return(hand_text)
 
     @property
-    def fancy_hand_text(self):
+    def hand_text_fancy(self):
         """Text in columns per suit for a player to view the cards in their hand."""
 
         time_string = Game.current_game.start_time
@@ -441,7 +443,6 @@ class Player():
         cards_per_suit = {suit: CardSet() for suit in _suits}
         for card in self.hand:
             cards_per_suit[repr(card.suit)].append_card(card)
-        print(cards_per_suit)
 
         text_rows = []
         text_rows.append(tuple(suit for suit in _suits))
@@ -458,16 +459,54 @@ class Player():
         hand_text = f"Je kaarten van {time_string} zijn:\n\n{card_text}"
         return(hand_text)
 
+    @property
+    def hand_text_html(self):
+        """Text for a player to view the cards in their hand."""
+
+        time_string = Game.current_game.start_time
+
+        _suits = [
+            "clubs",
+            "diamonds",
+            "hearts",
+            "spades",
+        ]
+        cards_per_suit = {suit: CardSet() for suit in _suits}
+        for card in self.hand:
+            cards_per_suit[repr(card.suit)].append_card(card)
+        # print(cards_per_suit)
+
+        header_row = tuple(suit for suit in _suits)
+
+        text_rows = []
+        while any(cards_per_suit.values()):
+            text_rows.append(
+                tuple(cards_per_suit[suit].take_card(0) if cards_per_suit[suit] else "" for suit in _suits)
+            )
+
+        title = f"Cards for {self._name}"
+        text = f"Je kaarten van {time_string} zijn:"
+
+        with document(title=title) as hand_text:
+            html.h1(title)
+            html.p(text)
+            with html.table().add(html.tbody()):
+                line = html.tr()
+                for cell in header_row:
+                    line += html.td(str(cell))
+                for text_row in text_rows:
+                    line = html.tr()
+                    for cell in text_row:
+                        line += html.td(str(cell))
+
+        return(hand_text)
+
 
 def main():
     """Draw cards from deck for all players, then email them to them."""
 
     my_deck = CardDeck()
     my_deck.shuffle()
-    print(my_deck)
-    print(my_deck.find_card_positions(limit_value="10"))
-    print(my_deck.find_card_positions(limit_value="10", limit_suit="clubs"))
-    print(my_deck.find_card_positions(limit_suit="clubs"))
 
     Player("Joe", "joe@example.com")
     Player("Ted", "ted@example.com")
@@ -475,24 +514,23 @@ def main():
     Player("Mary", "mary@example.com")
 
     Game(hand_size = 8)
-    print(Game.current_game)
-    print(Game.current_game.start_time)
     for player in Player.all_players:
         # print(player)
         # print(player.email_address)
         player.hand = my_deck.draw_cards(Game.current_game.hand_size)
         player.hand.sort(reverse=True)
 
-    for player in Player.all_players:
-        print(player)
-        # print(player.hand_text)
-
-    print(player.fancy_hand_text)
+    # for player in Player.all_players:
+    #     print(player)
+    #     print(player.hand_text)
+    #     print(player.hand_text_fancy)
+    #     print(player.hand_text_html)
 
     email1 = Email(
         player,
         subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
-        body=player.hand_text
+        body=player.hand_text,
+        body_html=player.hand_text_html,
     )
     email1.send()
 
@@ -576,6 +614,13 @@ def test():
     my_deck.prepend_cardset(my_deck2)
     # my_deck.insert_cardset(3, my_deck2)
     print(my_deck)
+
+    my_deck = CardDeck()
+    my_deck.shuffle()
+    print(my_deck)
+    print(my_deck.find_card_positions(limit_value="10"))
+    print(my_deck.find_card_positions(limit_value="10", limit_suit="clubs"))
+    print(my_deck.find_card_positions(limit_suit="clubs"))
 
 
 if __name__ == "__main__":
