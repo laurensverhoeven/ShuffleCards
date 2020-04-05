@@ -10,8 +10,9 @@ import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-# import numpy as np
+import numpy as np
 import functools
+import os
 
 # TODO
 # - Allow for choosing the cards that are in the deck
@@ -67,94 +68,92 @@ import functools
 # -
 
 
-def SendEmail(subject = "Test Onderwerp", body="Body Text", to = []):
-    """Send an email."""
+class Email():
 
-    with open("email_username", 'r') as file:
-        gmail_user = file.read()
-    with open("email_password", 'r') as file:
-        gmail_password = file.read()
+    _credentials_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-    print(f"Sedning from email address {gmail_user}")
+    with open(os.path.join(_credentials_path, "email_username"), 'r') as file:
+        __sender_username = file.read()
+        print(__sender_username)
 
-    sent_from = gmail_user
+    with open(os.path.join(_credentials_path, "email_password"), 'r') as file:
+        __sender_password = file.read()
+        print(__sender_password)
 
-    # Create message container - the correct MIME type is multipart/alternative.
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = gmail_user
-    msg['To'] = ", ".join(to)
+    def __init__(self, recipient, subject = "Test Subject", body="Body Text"):
+        """Create en email to send to a player."""
+        self._recipient = recipient
+        self.subject = subject
+        self.body = body
 
-    # Record the MIME types of both parts - text/plain and text/html.
-    # part1 = MIMEText(body, 'plain')
-    part1 = MIMEText(body.encode('utf-8'), _charset='utf-8')
-    # msg = MIMEText('€10'.encode('utf-8'), _charset='utf-8')
-    # part2 = MIMEText(html, 'html')
+    def send(self):
+        """Send an email."""
 
-    # Attach parts into message container.
-    # According to RFC 2046, the last part of a multipart message, in this case
-    # the HTML message, is best and preferred.
-    msg.attach(part1)
-    # msg.attach(part2)
+        print(
+            f"Sending from email address {self.__sender_username} to "
+            + f"{self._recipient} at {self._recipient.email_address} "
+            + f"with subject '{self.subject}' and text: \n{self.body}"
+        )
 
-    # msg = MIMEText(msg.encode('utf-8'), _charset='utf-8')
+        email_subject = self.subject
+        # email_to = [self._recipient.email_address]
+        email_to = [self.__sender_username]
+        email_from = self.__sender_username
+        email_body = self.body
 
-    try:
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.ehlo()
-        server.login(gmail_user, gmail_password)
-        # server.sendmail(sent_from, to, msg)
-        server.sendmail(sent_from, to, msg.as_string())
-        server.close()
+        # Create message container - the correct MIME type is multipart/alternative.
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = email_subject
+        msg['From'] = email_from
+        msg['To'] = ", ".join(email_to)
 
-        print(f'Email "{subject}" to {to} sent!')
-    except BaseException:
-        print('Something went wrong...')
-        raise
+        # Record the MIME types of both parts - text/plain and text/html.
+        # part1 = MIMEText(body, 'plain')
+        part1 = MIMEText(email_body.encode('utf-8'), _charset='utf-8')
+        # part2 = MIMEText(html, 'html')
 
-    return()
+        # Attach parts into message container.
+        # According to RFC 2046, the last part of a multipart message, in this case
+        # the HTML message, is best and preferred.
+        msg.attach(part1)
+        # msg.attach(part2)
+
+        try:
+            server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+            server.ehlo()
+            server.login(self.__sender_username, self.__sender_password)
+            # server.sendmail(self.__sender_username, to, msg)
+            server.sendmail(self.__sender_username, email_to, msg.as_string())
+            server.close()
+
+            print(f'Email "{email_subject}" to {email_to} sent!')
+        except BaseException:
+            print('Something went wrong...')
+            raise
 
 
-def HandToStringFancy(Hand):
-    """Format the cards in the given hand, arranging them in columns per suit."""
-    # print(time_string)
-    # HandText = f"Je kaarten van {time_string} zijn:\n\n"
-    HandText = f"Je kaarten van zijn:\n\n"
+class Game():
 
-    Suits = []
-    CardRanks = []
-    CardsPerSuit = {SuitNum: [] for SuitNum in Suits}
+    current_game = []
 
-    for suit_num, card_num in Hand:
-        CardsPerSuit[suit_num].append(f"{Suits[suit_num]} {CardRanks[card_num]}")
+    def __init__(self, hand_size = 13):
+        """Start a new game."""
+        self.start_time = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+        self.rule_set = None
+        self.game_type = None
+        self.value_ranking = None
+        self.suit_ranking = None
+        self.hand_size = hand_size
+        self.__class__.current_game = self
 
-    TextRows = []
-    TextRows.append(f"{Suits[suit_num]}" for suit_num in Suits)
-    # TextRows.append(f"{Suits[suit_num]}" for suit_num in Suits.keys())
-    # TextRows.append(("", "", "", ""))
 
-    while any(CardsPerSuit.values()):
-        TextRows.append([CardsPerSuit[SuitNum].pop() if CardsPerSuit[SuitNum] else "" for SuitNum in Suits])
-        # print(CardsPerSuit.values())
+class Round():
 
-    # Lines = [f"{Suits[suit_num]} {Cards[card_num]}" if   for suit_num, card_num in CardsPerSuit]
-
-    # pprint(TextRows)
-    for Row in TextRows:
-        # print(Row)
-
-        HandText += " {: <5} {: <5} {: <5} {: <5}\n".format(*Row)
-    # CardsPerSuit = list(map(list, zip(*CardsPerSuit)))
-
-    # Matrix = [[0 for x in range(w)] for y in range(h)]
-    # pprint(CardsPerSuit)
-
-    CardsPerSuit = [
-        [f"{Suits[suit_num]} {CardRanks[card_num]}" if suit_num == Suit else "" for suit_num, card_num in Hand]
-        for Suit in Suits
-    ]
-
-    # pprint(CardsPerSuit)
+    start_time = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+    dealer = None
+    value_ranking = None
+    suit_ranking = None
+    # trump_suit = None
 
 
 @functools.total_ordering
@@ -201,6 +200,11 @@ class Suit():
 @functools.total_ordering
 class Value():
     """Card value with rank and name."""
+
+    _ranking_contexts = [
+        "dealing",
+        "playing",
+    ]
 
     _ranking = [
         "2",
@@ -335,6 +339,7 @@ class CardSet():
         return()
 
     def take_cards(self, position, count):
+        # TODO add option to take all, with 0, or leave N with negative counts N
         taken_cards = CardSet()
         for _ in range(count):
             taken_cards.append_card(self.draw_card())
@@ -411,30 +416,51 @@ class Player():
     def __repr__(self):
         return(self._name)
 
+    @property
+    def hand_text(self):
+        """Text for a player to view the cards in their hand."""
+
+        time_string = Game.current_game.start_time
+        card_text = "\n".join(str(card) for card in self.hand)
+
+        hand_text = f"Je kaarten van {time_string} zijn:\n\n{card_text}"
+        return(hand_text)
+
+    @property
+    def fancy_hand_text(self):
+        """Text in columns per suit for a player to view the cards in their hand."""
+
+        time_string = Game.current_game.start_time
+
+        _suits = [
+            "clubs",
+            "diamonds",
+            "hearts",
+            "spades",
+        ]
+        cards_per_suit = {suit: CardSet() for suit in _suits}
+        for card in self.hand:
+            cards_per_suit[repr(card.suit)].append_card(card)
+        print(cards_per_suit)
+
+        text_rows = []
+        text_rows.append(tuple(suit for suit in _suits))
+
+        while any(cards_per_suit.values()):
+            text_rows.append(
+                tuple(cards_per_suit[suit].take_card(0) if cards_per_suit[suit] else "" for suit in _suits)
+            )
+
+        card_text = "\n".join(
+            "".join(("{: <10}".format(str(card)) for card in row))
+            for row in text_rows
+        )
+        hand_text = f"Je kaarten van {time_string} zijn:\n\n{card_text}"
+        return(hand_text)
+
 
 def main():
     """Draw cards from deck for all players, then email them to them."""
-
-    # my_deck = CardSet()
-    # my_deck.append_card(Card("A", "clubs"))
-    # my_deck.append_card(Card("K", "clubs"))
-    # my_deck.append_card(Card("A", "spades"))
-    # my_deck.append_card(Card("A", "hearts"))
-    # my_deck.insert_card(2, Card("7", "diamonds"))
-    # print(my_deck)
-    # # for card in reversed(my_deck):
-    # #     print(card)
-
-    # my_deck2 = CardSet()
-    # my_deck2.append_card(Card("9", "spades"))
-    # my_deck2.append_card(Card("10", "hearts"))
-    # my_deck2.insert_card(2, Card("J", "diamonds"))
-    # print(my_deck2)
-
-    # # my_deck.append_cardset(my_deck2)
-    # my_deck.prepend_cardset(my_deck2)
-    # # my_deck.insert_cardset(3, my_deck2)
-    # print(my_deck)
 
     my_deck = CardDeck()
     my_deck.shuffle()
@@ -443,59 +469,113 @@ def main():
     print(my_deck.find_card_positions(limit_value="10", limit_suit="clubs"))
     print(my_deck.find_card_positions(limit_suit="clubs"))
 
-    # print()
-    # player_count = 4
-    # hand_size = 8
-    # print(my_deck)
-    # hands = [my_deck.draw_cards(hand_size) for _ in range(player_count)]
-    # # hand1 = my_deck.draw_cards(hand_size)
-    # # print(my_deck)
-    # for hand in hands:
-    #     # print()
-    #     # print(hand)
-    #     hand.sort(reverse=True)
-    #     # hand.sort(reverse=False)
-    #     print(hand)
+    Player("Joe", "joe@example.com")
+    Player("Ted", "ted@example.com")
+    Player("Anne", "anne@example.com")
+    Player("Mary", "mary@example.com")
 
-    Player1 = Player("Joe", "joe@example.com")
-    Player2 = Player("Ted", "ted@example.com")
-    Player2 = Player("Anne", "anne@example.com")
-    Player2 = Player("Mary", "mary@example.com")
-
-    hand_size = 8
+    Game(hand_size = 8)
+    print(Game.current_game)
+    print(Game.current_game.start_time)
     for player in Player.all_players:
         # print(player)
         # print(player.email_address)
-        player.hand = my_deck.draw_cards(hand_size)
+        player.hand = my_deck.draw_cards(Game.current_game.hand_size)
         player.hand.sort(reverse=True)
 
     for player in Player.all_players:
         print(player)
-        print(player.hand)
+        # print(player.hand_text)
+
+    print(player.fancy_hand_text)
+
+    email1 = Email(
+        player,
+        subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
+        body=player.hand_text
+    )
+    email1.send()
 
 
-    # hand_texts = []
-    # time_string = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-    # for hand in hands:
-    #     hand_text = f"Je kaarten van {time_string} zijn:\n\n"
-    #     for card in hand:
-    #         hand_text += f"{card}\n"
-    #     hand_texts.append(hand_text)
+def matrix_stuff():
+    print()
+    a = np.array([
+        [5, 1, 3],
+        [1, 1, 1],
+        [1, 2, 1]
+    ])
+    b = np.array([1, 2, 3])
+    print(a.dot(b))
 
-    # for hand_texts in hand_texts:
-    #     pass
-    #     print(hand_texts)
+    # standard_ranking = np.zeros((13, 13), dtype=int)
+    # np.fill_diagonal(standard_ranking, 1)
+    # print(standard_ranking)
 
-    # print(Player1.hand)
+    value_count = 8
+    # standard_ranking2 = np.diag(np.full(value_count, 1))
+    # print(standard_ranking2)
 
-    # # print(list(zip(Recipients, hand_texts)))
-    # for Recipient, hand_text in zip(Recipients, hand_texts):
-    #     SendEmail(
-    #         body = hand_text,
-    #         to = [Recipient],
-    #         subject = "Kaarten voor klaverjas, geschud om " + time_string
-    #     )
-    #     # break
+    klaverjas_ranking = np.zeros((value_count, value_count), dtype=int)
+    diagonal_ranks = np.arange(-6, -value_count - 1, -1)
+    klaverjas_ranking[diagonal_ranks, diagonal_ranks] = 1
+    klaverjas_ranking[-1, -1] = 1
+    klaverjas_ranking[-2, -5] = 1
+    klaverjas_ranking[-3, -2] = 1
+    klaverjas_ranking[-4, -3] = 1
+    klaverjas_ranking[-5, -4] = 1
+
+    # diagonal_ranks = np.insert(diagonal_ranks, 0, -1, axis=0)
+    # print(diagonal_ranks)
+
+    # shifted_diagonal_ranks = np.arange(-2, -4 - 1, -1)
+    # print(shifted_diagonal_ranks)
+    # klaverjas_ranking[shifted_diagonal_ranks - 1, shifted_diagonal_ranks] = 1
+
+    klaverjas_ranking[-2, -5] = 1
+
+    print(klaverjas_ranking)
+    ranks = np.array(["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", ], dtype=object)
+    ranks = ranks[-value_count:]
+    print(ranks)
+    print(klaverjas_ranking.dot(ranks))
+
+    klaverjas_trump_ranking = np.zeros((value_count, value_count), dtype=int)
+
+    diagonal_ranks = np.arange(-7, -value_count - 1, -1)
+    klaverjas_trump_ranking[diagonal_ranks, diagonal_ranks] = 1
+
+    klaverjas_trump_ranking[-1, -4] = 1
+    klaverjas_trump_ranking[-2, -6] = 1
+    klaverjas_trump_ranking[-3, -1] = 1
+    klaverjas_trump_ranking[-4, -5] = 1
+    klaverjas_trump_ranking[-5, -2] = 1
+    klaverjas_trump_ranking[-6, -3] = 1
+
+    print(klaverjas_trump_ranking.dot(ranks))
+
+
+def test():
+    # TODO
+    my_deck = CardSet()
+    my_deck.append_card(Card("A", "clubs"))
+    my_deck.append_card(Card("K", "clubs"))
+    my_deck.append_card(Card("A", "spades"))
+    my_deck.append_card(Card("A", "hearts"))
+    my_deck.insert_card(2, Card("7", "diamonds"))
+    print(my_deck)
+    # for card in reversed(my_deck):
+    #     print(card)
+
+    my_deck2 = CardSet()
+    my_deck2.append_card(Card("9", "spades"))
+    my_deck2.append_card(Card("10", "hearts"))
+    my_deck2.insert_card(2, Card("J", "diamonds"))
+    print(my_deck2)
+
+    # my_deck.append_cardset(my_deck2)
+    my_deck.prepend_cardset(my_deck2)
+    # my_deck.insert_cardset(3, my_deck2)
+    print(my_deck)
 
 
 if __name__ == "__main__":
