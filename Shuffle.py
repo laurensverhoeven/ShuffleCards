@@ -13,6 +13,7 @@ from email.mime.text import MIMEText
 import numpy as np
 import functools
 import os
+# import collections
 from dominate import document
 import dominate.tags as html
 
@@ -136,7 +137,7 @@ class Email():
 
 class Game():
 
-    current_game = []
+    current_game = None
 
     def __init__(self, hand_size = 13):
         """Start a new game."""
@@ -147,6 +148,9 @@ class Game():
         self.suit_ranking = None
         self.hand_size = hand_size
         self.__class__.current_game = self
+        # self.suits_in_game = Suit.all_suits
+        # print(Suit.all_suits)
+        self.suits_in_game = Suit.get_all_suits()[:]
 
 
 class Round():
@@ -160,43 +164,49 @@ class Round():
 
 @functools.total_ordering
 class Suit():
-    """Suit with rank and name."""
+    """Suit that can be compared with other suits."""
 
-    _name = [
+    _names = [
         "clubs",
         "diamonds",
         "hearts",
         "spades",
     ]
-    _symbols = {
-        "clubs": "♣",
-        "diamonds": "♢",
-        "hearts": "♡",
-        "spades": "♠",
-    }
     # _symbols = {
-    #     "clubs": "♣",
-    #     "diamonds": "♦",
-    #     "hearts": "♥",
+    #     "clubs": "♣",c
+    #     "diamonds": "♢",
+    #     "hearts": "♡",
     #     "spades": "♠",
     # }
+    _symbols = {
+        "clubs": "♣",
+        "diamonds": "♦",
+        "hearts": "♥",
+        "spades": "♠",
+    }
+
+    @classmethod
+    def get_all_suits(cls):
+        return([cls(suits_name) for suits_name in cls._names])
 
     def __repr__(self):
-        return(self._name[self._rank])
+        return(self.name)
 
     def __str__(self):
-        return(self._symbols[self.__repr__()])
+        return(self.symbol)
 
-    def __init__(self, name):
-        """Create Suit. Give a rank(str)."""
-        self._rank = self._name.index(name)
+    def __init__(self, suit):
+        """Create a Suit object with the given suit(str)."""
+        self.name = suit
+        self.symbol = self._symbols[suit]
+        self.rank = self._names.index(suit)
 
     # https://stackoverflow.com/a/29429106/5633770
     def __eq__(self, other):
-        return(self._rank == other._rank)
+        return(self.rank == other.rank)
 
     def __lt__(self, other):
-        return(self._rank < other._rank)
+        return(self.rank < other.rank)
 
 
 @functools.total_ordering
@@ -376,12 +386,13 @@ class CardDeck(CardSet):
         "32": [],
     }
 
-    _suits = [
-        "clubs",
-        "diamonds",
-        "hearts",
-        "spades",
-    ]
+    # _suits = Game.current_game.suits_in_game
+    # _suits = [
+    #     "clubs",
+    #     "diamonds",
+    #     "hearts",
+    #     "spades",
+    # ]
 
     _values = [
         # "2",
@@ -401,7 +412,8 @@ class CardDeck(CardSet):
 
     def __init__(self, deck_type="52", additional_cards=None, excldued_cards=None, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
-        self._cards = [Card(value, suit) for suit in self._suits for value in self._values]
+        self._suits = Game.current_game.suits_in_game
+        self._cards = [Card(value, repr(suit)) for suit in self._suits for value in self._values]
 
 
 class Player():
@@ -434,13 +446,9 @@ class Player():
 
         time_string = Game.current_game.start_time
 
-        _suits = [
-            "clubs",
-            "diamonds",
-            "hearts",
-            "spades",
-        ]
-        cards_per_suit = {suit: CardSet() for suit in _suits}
+        _suits = Game.current_game.suits_in_game
+
+        cards_per_suit = {repr(suit): CardSet() for suit in _suits}
         for card in self.hand:
             cards_per_suit[repr(card.suit)].append_card(card)
 
@@ -449,7 +457,7 @@ class Player():
 
         while any(cards_per_suit.values()):
             text_rows.append(
-                tuple(cards_per_suit[suit].take_card(0) if cards_per_suit[suit] else "" for suit in _suits)
+                tuple(cards_per_suit[repr(suit)].take_card(0) if cards_per_suit[repr(suit)] else "" for suit in _suits)
             )
 
         card_text = "\n".join(
@@ -465,23 +473,19 @@ class Player():
 
         time_string = Game.current_game.start_time
 
-        _suits = [
-            "clubs",
-            "diamonds",
-            "hearts",
-            "spades",
-        ]
-        cards_per_suit = {suit: CardSet() for suit in _suits}
+        _suits = Game.current_game.suits_in_game
+
+        cards_per_suit = {repr(suit): CardSet() for suit in _suits}
         for card in self.hand:
             cards_per_suit[repr(card.suit)].append_card(card)
         # print(cards_per_suit)
 
-        header_row = tuple(suit for suit in _suits)
+        header_row = tuple(suit.name for suit in _suits)
 
         text_rows = []
         while any(cards_per_suit.values()):
             text_rows.append(
-                tuple(cards_per_suit[suit].take_card(0) if cards_per_suit[suit] else "" for suit in _suits)
+                tuple(cards_per_suit[repr(suit)].take_card(0) if cards_per_suit[repr(suit)] else "" for suit in _suits)
             )
 
         title = f"Cards for {self._name}"
@@ -505,6 +509,8 @@ class Player():
 def main():
     """Draw cards from deck for all players, then email them to them."""
 
+    Game(hand_size = 8)
+    print(Game.current_game.start_time)
     my_deck = CardDeck()
     my_deck.shuffle()
 
@@ -513,7 +519,6 @@ def main():
     Player("Anne", "anne@example.com")
     Player("Mary", "mary@example.com")
 
-    Game(hand_size = 8)
     for player in Player.all_players:
         # print(player)
         # print(player.email_address)
@@ -526,13 +531,24 @@ def main():
     #     print(player.hand_text_fancy)
     #     print(player.hand_text_html)
 
-    email1 = Email(
-        player,
-        subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
-        body=player.hand_text,
-        body_html=player.hand_text_html,
-    )
-    email1.send()
+    emails = [
+        Email(
+            player,
+            subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
+            body=player.hand_text,
+            body_html=player.hand_text_html,
+        )
+        for player in Player.all_players
+    ]
+    emails[0].send()
+
+    # email1 = Email(
+    #     player,
+    #     subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
+    #     body=player.hand_text,
+    #     body_html=player.hand_text_html,
+    # )
+    # email1.send()
 
 
 def matrix_stuff():
