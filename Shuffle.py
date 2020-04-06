@@ -618,7 +618,9 @@ def main():
         )
         for player in Player.all_players
     ]
-    emails.send()
+
+    for email in emails:
+        email.send()
 
 
 def matrix_stuff():
