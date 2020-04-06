@@ -524,7 +524,7 @@ class Player():
         """Text in columns per suit for a player to view the cards in their hand."""
 
         time_string = Game.current_game.start_time
-
+        text = f"Je kaarten van {time_string} zijn:"
         _suits = Game.current_game.suits_in_game
 
         cards_per_suit = {repr(suit): CardSet() for suit in _suits}
@@ -543,7 +543,7 @@ class Player():
             "".join(("{: <10}".format(str(card)) for card in row))
             for row in text_rows
         )
-        hand_text = f"Je kaarten van {time_string} zijn:\n\n{card_text}"
+        hand_text = f"{text}\n\n{card_text}"
         return(hand_text)
 
     @property
@@ -551,7 +551,8 @@ class Player():
         """Text for a player to view the cards in their hand."""
 
         time_string = Game.current_game.start_time
-
+        title = f"Kaarten voor {self._name}"
+        text = f"Je kaarten van {time_string} zijn:"
         _suits = Game.current_game.suits_in_game
 
         cards_per_suit = {repr(suit): CardSet() for suit in _suits}
@@ -566,9 +567,6 @@ class Player():
             text_rows.append(
                 tuple(cards_per_suit[repr(suit)].take_card(0) if cards_per_suit[repr(suit)] else "" for suit in _suits)
             )
-
-        title = f"Cards for {self._name}"
-        text = f"Je kaarten van {time_string} zijn:"
 
         with document(title=title) as hand_text:
             html.h1(title)
@@ -610,24 +608,17 @@ def main():
         print(player.hand_text_fancy)
         # print(player.hand_text_html)
 
+    subject = f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}"
     emails = [
         Email(
             player,
-            subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
+            subject=subject,
             body=player.hand_text,
             body_html=player.hand_text_html,
         )
         for player in Player.all_players
     ]
     emails[0].send()
-
-    # email1 = Email(
-    #     player,
-    #     subject=f"Kaarten voor klaverjas, geschud om {Game.current_game.start_time}",
-    #     body=player.hand_text,
-    #     body_html=player.hand_text_html,
-    # )
-    # email1.send()
 
 
 def matrix_stuff():
