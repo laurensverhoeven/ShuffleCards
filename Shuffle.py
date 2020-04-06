@@ -129,7 +129,7 @@ class Email():
             server.sendmail(self.__sender_username, self.__sender_username, msg.as_string())
             server.close()
 
-            print(f'Email "{self.subject}" to {self.__sender_username} sent!')
+            print(f'Email "{self.subject}" to {self._recipient.email_address} sent!')
         except BaseException:
             print('Something went wrong...')
             raise
@@ -604,6 +604,7 @@ def main():
 
     for player in Player.all_players:
         print(player)
+        print(player.email_address)
         # print(player.hand_text)
         print(player.hand_text_fancy)
         # print(player.hand_text_html)
