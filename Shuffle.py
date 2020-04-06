@@ -104,21 +104,11 @@ class Email():
     def send(self):
         """Send an email."""
 
-        # TODO: delete this
-        # For testing
-        self._recipient.email_address = self.__sender_username
-
-        # print(
-        #     f"Sending from email address {self.__sender_username} to "
-        #     + f"{self._recipient} at {self._recipient.email_address} "
-        #     + f"with subject '{self.subject}' and text: \n{self.body}"
-        # )
-
         # Create message container - the correct MIME type is multipart/alternative.
         msg = MIMEMultipart('alternative')
         msg['Subject'] = self.subject
         msg['From'] = self.__sender_username
-        msg['To'] = ", ".join([self.__sender_username])
+        msg['To'] = ", ".join([self._recipient.email_address])
 
         # Record the MIME types of both parts - text/plain and text/html.
         # Attach parts into message container.
@@ -590,7 +580,6 @@ def import_players(file_name):
     with open(file_name, 'r') as csvfile:
         player_reader = csv.reader(csvfile, delimiter=',', quotechar='"')
         players = [(name, email) for name, email in player_reader][1:]
-        # players = [Player(name, email) for name, email in player_reader][1:]
 
     players = [Player(name, email) for name, email in players]
 
@@ -605,7 +594,7 @@ def main():
     my_deck = CardDeck()
     my_deck.shuffle()
 
-    print(import_players(os.path.join(SCRIPT_DIR, "players.csv")))
+    import_players(os.path.join(SCRIPT_DIR, "players.csv"))
 
     for player in Player.all_players:
         # print(player)
@@ -629,7 +618,7 @@ def main():
         )
         for player in Player.all_players
     ]
-    emails[0].send()
+    emails.send()
 
 
 def matrix_stuff():
