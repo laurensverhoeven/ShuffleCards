@@ -45,6 +45,14 @@ import dominate.tags as html
 # - Find out if random's shuffle is random enough
 # - Store Suit and value of cards stored in 4-vector, to determine card value with matrix?
 # - Gather all lists of suits and values in one place, instead of redifining in multple classes
+# - IDEAS for context-dependent value ranking:
+#     - Make value a base class; generate value classes per suit with their own ranking
+#     - Remove value as class, instead make value an attribute of card only
+#     - Make rank a property of card, with a getter that determines the ranking to use
+#     - Save value ranking in different class (Game?)
+#     - Change ranking in value class when context changes
+#     - Change context-variable in Game class, have value look it up each time
+# -
 # -
 # -
 # -
@@ -144,7 +152,8 @@ class Game():
         self.start_time = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
         self.rule_set = None
         self.game_type = None
-        self.value_ranking = None
+        self.ranking_context = "bidding"
+        # self.value_ranking = None
         self.suit_ranking = None
         self.hand_size = hand_size
         self.__class__.current_game = self
@@ -213,10 +222,74 @@ class Suit():
 class Value():
     """Card value with rank and name."""
 
-    _ranking_contexts = [
-        "dealing",
-        "playing",
-    ]
+    # _ranking_contexts = [
+    #     "bidding",
+    #     "playing",
+    #     "playing_trump",
+    # ]
+
+    _rankings = {
+        "bidding": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "Q",
+            "K",
+            "10",
+            "A",
+            "9",
+            "J",
+        ],
+        "playing": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "J",
+            "Q",
+            "K",
+            "10",
+            "A",
+        ],
+        "playing_trump": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "Q",
+            "K",
+            "10",
+            "A",
+            "9",
+            "J",
+        ],
+        "roem": [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "J",
+            "Q",
+            "K",
+            "A",
+        ],
+    }
 
     _ranking = [
         "2",
@@ -235,19 +308,25 @@ class Value():
     ]
     # values = [Value(value_rank, value_name) for value_rank, value_name in enumerate(value_ranking)]
 
+    @property
+    def rank(self):
+        ranking = self._rankings[Game.current_game.ranking_context]
+        return(ranking.index(self.name))
+
     def __repr__(self):
-        return(self._ranking[self._rank])
+        return(self.name)
 
     def __init__(self, name):
         """Create Suit. Give the name(str)."""
-        self._rank = self._ranking.index(name)
+        self.name = name
+        # self._rank = self._ranking.index(name)
 
     # https://stackoverflow.com/a/29429106/5633770
     def __eq__(self, other):
-        return(self._rank == other._rank)
+        return(self.rank == other.rank)
 
     def __lt__(self, other):
-        return(self._rank < other._rank)
+        return(self.rank < other.rank)
 
 
 @functools.total_ordering
@@ -525,11 +604,11 @@ def main():
         player.hand = my_deck.draw_cards(Game.current_game.hand_size)
         player.hand.sort(reverse=True)
 
-    # for player in Player.all_players:
-    #     print(player)
-    #     print(player.hand_text)
-    #     print(player.hand_text_fancy)
-    #     print(player.hand_text_html)
+    for player in Player.all_players:
+        print(player)
+        # print(player.hand_text)
+        print(player.hand_text_fancy)
+        # print(player.hand_text_html)
 
     emails = [
         Email(
