@@ -46,6 +46,7 @@ import csv
 # - Find out if random's shuffle is random enough
 # - Store Suit and value of cards stored in 4-vector, to determine card value with matrix?
 # - Gather all lists of suits and values in one place, instead of redifining in multple classes
+# - Send multiple games at once
 # - IDEAS for context-dependent value ranking:
 #     - Make value a base class; generate value classes per suit with their own ranking
 #     - Remove value as class, instead make value an attribute of card only
@@ -126,7 +127,7 @@ class Email():
             server.ehlo()
             server.login(self.__sender_username, self.__sender_password)
             # server.sendmail(self.__sender_username, to, msg)
-            server.sendmail(self.__sender_username, self.__sender_username, msg.as_string())
+            server.sendmail(self.__sender_username, self._recipient.email_address, msg.as_string())
             server.close()
 
             print(f'Email "{self.subject}" to {self._recipient.email_address} sent!')
@@ -531,6 +532,8 @@ class Player():
                 tuple(cards_per_suit[repr(suit)].take_card(0) if cards_per_suit[repr(suit)] else "" for suit in _suits)
             )
 
+        text_rows = [reversed(text_row) for text_row in text_rows]
+
         card_text = "\n".join(
             "".join(("{: <10}".format(str(card)) for card in row))
             for row in text_rows
@@ -559,6 +562,9 @@ class Player():
             text_rows.append(
                 tuple(cards_per_suit[repr(suit)].take_card(0) if cards_per_suit[repr(suit)] else "" for suit in _suits)
             )
+
+        header_row = reversed(header_row)
+        text_rows = [reversed(text_row) for text_row in text_rows]
 
         with document(title=title) as hand_text:
             html.h1(title)
