@@ -16,6 +16,7 @@ import os
 # import collections
 from dominate import document
 import dominate.tags as html
+import csv
 
 # TODO
 # - Allow for choosing the cards that are in the deck
@@ -82,14 +83,15 @@ import dominate.tags as html
 # -
 
 
+SCRIPT_DIR = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
+
 class Email():
 
-    _credentials_path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-
-    with open(os.path.join(_credentials_path, "email_username"), 'r') as file:
+    with open(os.path.join(SCRIPT_DIR, "email_username"), 'r') as file:
         __sender_username = file.read()
 
-    with open(os.path.join(_credentials_path, "email_password"), 'r') as file:
+    with open(os.path.join(SCRIPT_DIR, "email_password"), 'r') as file:
         __sender_password = file.read()
 
     def __init__(self, recipient, subject = "Test Subject", body="Body Text", body_html=None):
@@ -583,6 +585,18 @@ class Player():
         return(hand_text)
 
 
+def import_players(file_name):
+
+    with open(file_name, 'r') as csvfile:
+        player_reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        players = [(name, email) for name, email in player_reader][1:]
+        # players = [Player(name, email) for name, email in player_reader][1:]
+
+    players = [Player(name, email) for name, email in players]
+
+    return(players)
+
+
 def main():
     """Draw cards from deck for all players, then email them to them."""
 
@@ -591,10 +605,7 @@ def main():
     my_deck = CardDeck()
     my_deck.shuffle()
 
-    Player("Joe", "joe@example.com")
-    Player("Ted", "ted@example.com")
-    Player("Anne", "anne@example.com")
-    Player("Mary", "mary@example.com")
+    print(import_players(os.path.join(SCRIPT_DIR, "players.csv")))
 
     for player in Player.all_players:
         # print(player)
