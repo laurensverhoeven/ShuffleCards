@@ -47,6 +47,7 @@ import csv
 # - Store Suit and value of cards stored in 4-vector, to determine card value with matrix?
 # - Gather all lists of suits and values in one place, instead of redifining in multple classes
 # - Send multiple games at once
+# - Support for bridge, toepen and other games
 # - IDEAS for context-dependent value ranking:
 #     - Make value a base class; generate value classes per suit with their own ranking
 #     - Remove value as class, instead make value an attribute of card only
@@ -54,7 +55,9 @@ import csv
 #     - Save value ranking in different class (Game?)
 #     - Change ranking in value class when context changes
 #     - Change context-variable in Game class, have value look it up each time
-# -
+#     - Create new class ruleset, store rankings among other things in the ruleset class
+# - Make new class GameType, that is able to store the rules of a game. Instances of that class hold all those rules,
+#   like the cards that are in play, the order of their ranking and the size of the hands
 # -
 # -
 # -
@@ -136,23 +139,63 @@ class Email():
             raise
 
 
+class RuleSet():
+
+    def __init__(
+        self,
+        name=None,
+        value_set=[
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "J",
+            "Q",
+            "K",
+            "A",
+        ],
+        value_rankings=None,
+        suit_name_set=[
+            "clubs",
+            "diamonds",
+            "hearts",
+            "spades",
+        ],
+        hand_size=13,
+    ):
+        """Create a new rule set."""
+        self.name = name
+        if value_rankings is None:
+            self.value_ranking = {"default": value_set}
+        else:
+            self.value_ranking = value_rankings
+        self.suit_ranking = None
+        self.hand_size = hand_size
+        self.suits_in_game = [Suit(suit_name) for suit_name in suit_name_set]
+        self.values_in_game = value_set
+
+
 class Game():
 
     current_game = None
 
-    def __init__(self, hand_size = 13):
+    def __init__(self, rule_set=None):
         """Start a new game."""
-        self.start_time = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
-        self.rule_set = None
-        self.game_type = None
-        self.ranking_context = "bidding"
-        # self.value_ranking = None
-        self.suit_ranking = None
-        self.hand_size = hand_size
         self.__class__.current_game = self
-        # self.suits_in_game = Suit.all_suits
-        # print(Suit.all_suits)
-        self.suits_in_game = Suit.get_all_suits()[:]
+        self.start_time = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+        self.game_rules = rule_set.name
+        self.ranking_context = "bidding"
+
+        self.suit_ranking = rule_set.suit_ranking
+        self.value_ranking = rule_set.value_ranking
+        self.hand_size = rule_set.hand_size
+        self.suits_in_game = rule_set.suits_in_game
+        self.values_in_game = rule_set.values_in_game
 
 
 class Round():
@@ -458,34 +501,11 @@ class CardDeck(CardSet):
         "32": [],
     }
 
-    # _suits = Game.current_game.suits_in_game
-    # _suits = [
-    #     "clubs",
-    #     "diamonds",
-    #     "hearts",
-    #     "spades",
-    # ]
-
-    _values = [
-        # "2",
-        # "3",
-        # "4",
-        # "5",
-        # "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "J",
-        "Q",
-        "K",
-        "A",
-    ]
-
     def __init__(self, deck_type="52", additional_cards=None, excldued_cards=None, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
-        self._suits = Game.current_game.suits_in_game
-        self._cards = [Card(value, repr(suit)) for suit in self._suits for value in self._values]
+        suits = Game.current_game.suits_in_game
+        card_values = Game.current_game.values_in_game
+        self._cards = [Card(value, repr(suit)) for suit in suits for value in card_values]
 
 
 class Player():
@@ -592,10 +612,94 @@ def import_players(file_name):
     return(players)
 
 
+def create_rule_sets():
+
+    def create_klaverjassen():
+        game_name = "klaverjassen"
+
+        value_set = [
+            "7",
+            "8",
+            "9",
+            "10",
+            "J",
+            "Q",
+            "K",
+            "A",
+        ]
+
+        suit_name_set = [
+            "clubs",
+            "diamonds",
+            "hearts",
+            "spades",
+        ]
+
+        hand_size = 8
+
+        klaverjassen = RuleSet(
+            name=game_name,
+            value_set=value_set,
+            suit_name_set=suit_name_set,
+            hand_size=hand_size,
+        )
+
+        return(klaverjassen)
+
+    def create_bridge():
+        game_name = "bridge"
+
+        value_set = [
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "J",
+            "Q",
+            "K",
+            "A",
+        ]
+
+        suit_name_set = [
+            "clubs",
+            "diamonds",
+            "hearts",
+            "spades",
+        ]
+
+        hand_size = 13
+
+        klaverjassen = RuleSet(
+            name=game_name,
+            value_set=value_set,
+            suit_name_set=suit_name_set,
+            hand_size=hand_size,
+        )
+
+        return(klaverjassen)
+
+    rule_set_list = []
+    rule_set_list.append(create_klaverjassen())
+    rule_set_list.append(create_bridge())
+
+    rule_sets = {rule_set.name: rule_set for rule_set in rule_set_list}
+
+    return(rule_sets)
+
+
 def main():
     """Draw cards from deck for all players, then email them to them."""
 
-    Game(hand_size = 8)
+    rule_sets = create_rule_sets()
+    current_rule_set = rule_sets["klaverjassen"]
+
+    Game(rule_set=current_rule_set)
+    # Game(game_type="klaverjassen")
     print(Game.current_game.start_time)
     my_deck = CardDeck()
     my_deck.shuffle()
